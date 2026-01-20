@@ -23,9 +23,22 @@ def execute_production_plan(periods_and_demand, initial_stock, final_stock, cost
     N = pulp.LpVariable("normal_prod", lowBound=0)
 
     # Produção extra, subcontratação e estoque variam por período t
-    extra = [pulp.LpVariable(f"extra_{t}", lowBound=0) for t in range(T)]
-    sub   = [pulp.LpVariable(f"sub_{t}",   lowBound=0) for t in range(T)]
+    # extra = [pulp.LpVariable(f"extra_{t}", lowBound=0) for t in range(T)]
+    # sub   = [pulp.LpVariable(f"sub_{t}",   lowBound=0) for t in range(T)]
     stock = [pulp.LpVariable(f"stock_{t}", lowBound=0) for t in range(T)]
+
+    extra_blocks = [
+        pulp.LpVariable(f"extra_blocks_{t}", lowBound=0, upBound=20, cat="Integer")
+        for t in range(T)
+    ]
+    extra = [50 * extra_blocks[t] for t in range(T)]   # extra real = 50 × blocks
+
+    # SUB: divisível por 80 → blocos inteiros também
+    sub_blocks = [
+        pulp.LpVariable(f"sub_blocks_{t}", lowBound=0, upBound=20, cat="Integer")
+        for t in range(T)
+    ]
+    sub = [80 * sub_blocks[t] for t in range(T)]  
 
     # ===============================
     # RESTRIÇÕES DO MODELO
@@ -43,7 +56,6 @@ def execute_production_plan(periods_and_demand, initial_stock, final_stock, cost
         model += stock[t] >= 0
 
         # Restrição operacional: produção extra + sub não pode ultrapassar 1/3 da produção normal
-        model += extra[t] + sub[t] <= N / 3
 
     # Estoque final desejado
     model += stock[-1] >= final_stock
@@ -299,24 +311,24 @@ def generate_graph(result, filename="grafico_plano.png"):
 # =========================
 if __name__ == "__main__":
     periods_and_demand = [
-        {"1 trimestre": 1000},
-        {"2 trimestre": 800},
-        {"3 trimestre": 600},
-        {"4 trimestre": 1000}
+        {"1 trimestre": 28000},
+        {"2 trimestre": 25000},
+        {"3 trimestre": 11000},
+        {"4 trimestre": 10000}
     ]
-    initial_stock = 50
-    final_stock = 200
-    costs = {"normal":5, "extra":7.5, "sub_contract":10, "stock":5, "delay":10}
+    initial_stock = 5000
+    final_stock = 0
+    costs = {"normal":5, "extra":10, "sub_contract":16, "stock":3, "delay":160}
 
     # run optimizer
     res = execute_production_plan(periods_and_demand, initial_stock, final_stock, costs)
     # department times (h per unit) as given in your image/question
-    times_per_dept = [0.3, 0.2, 0.6, 0.4]
+    times_per_dept = [0.8, 0.5, 0.6, 0.6]
     dept_cap = compute_department_capacity(res, times_per_dept)
 
     # save xlsx and graph
-    xlsx_path = export_to_xlsx(res, dept_capacity=dept_cap, filename="meu_plano_final_completo_2.xlsx")
-    graph_path = generate_graph(res, filename="meu_grafico_2.png")
+    xlsx_path = export_to_xlsx(res, dept_capacity=dept_cap, filename="test_exercise.xlsx")
+    graph_path = generate_graph(res, filename="test_exercise.png")
 
     print("Resultado (res):")
     print(res)
